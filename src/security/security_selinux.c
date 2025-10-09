@@ -2248,6 +2248,16 @@ virSecuritySELinuxSetHostdevSubsysLabel(virSecurityManager *mgr,
             ret = virSecuritySELinuxSetHostdevLabelHelper(vfioGroupDev,
                                                           false,
                                                           &data);
+            if (def->egm) {
+                g_autofree char *egm_path = g_strdup_printf("/dev/%s", def->egm->alias);
+                int ret2 = virSecuritySELinuxSetHostdevLabelHelper(egm_path,
+                                                                   false,
+                                                                   &data);
+                if (ret2 < 0) {
+                    ret = ret2;
+                    break;
+                }
+            }
             if (dev->source.subsys.u.pci.driver.iommufd) {
                 g_autofree char *vfiofdDev = virPCIDeviceGetIOMMUFDDev(pci);
                 const char *iommufdDir = "/dev/iommu";
@@ -2447,6 +2457,7 @@ virSecuritySELinuxRestoreHostLabel(virSCSIVHostDevice *dev G_GNUC_UNUSED,
 
 static int
 virSecuritySELinuxRestoreHostdevSubsysLabel(virSecurityManager *mgr,
+                                            virDomainDef *def,
                                             virDomainHostdevDef *dev,
                                             const char *vroot)
 
@@ -2501,6 +2512,14 @@ virSecuritySELinuxRestoreHostdevSubsysLabel(virSecurityManager *mgr,
 
             ret = virSecuritySELinuxRestoreFileLabel(mgr, vfioGroupDev, false);
 
+            if (def->egm) {
+                g_autofree char *egm_path = g_strdup_printf("/dev/%s", def->egm->alias);
+                int ret2 = virSecuritySELinuxRestoreFileLabel(mgr, egm_path, false);
+                if (ret2 < 0) {
+                    ret = ret2;
+                    break;
+                }
+            }
             if (dev->source.subsys.u.pci.driver.iommufd) {
                 g_autofree char *vfiofdDev = virPCIDeviceGetIOMMUFDDev(pci);
                 if (vfiofdDev) {
@@ -2621,7 +2640,7 @@ virSecuritySELinuxRestoreHostdevLabel(virSecurityManager *mgr,
 
     switch (dev->mode) {
     case VIR_DOMAIN_HOSTDEV_MODE_SUBSYS:
-        return virSecuritySELinuxRestoreHostdevSubsysLabel(mgr, dev, vroot);
+        return virSecuritySELinuxRestoreHostdevSubsysLabel(mgr, def, dev, vroot);
 
     case VIR_DOMAIN_HOSTDEV_MODE_CAPABILITIES:
         return virSecuritySELinuxRestoreHostdevCapsLabel(mgr, dev, vroot);

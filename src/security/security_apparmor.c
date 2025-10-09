@@ -857,6 +857,14 @@ AppArmorSetSecurityHostdevLabel(virSecurityManager *mgr,
             ret = AppArmorSetSecurityPCILabel(pci, vfioGroupDev, ptr);
             VIR_FREE(vfioGroupDev);
 
+            if (def->egm) {
+                g_autofree char *egm_path = g_strdup_printf("/dev/%s", def->egm->alias);
+                int ret2 = reload_profile(ptr->mgr, def, egm_path, true);
+                if (ret2 < 0) {
+                    ret = ret2;
+                    break;
+                }
+            }
             if (dev->source.subsys.u.pci.driver.iommufd) {
                 g_autofree char *vfiofdDev = virPCIDeviceGetIOMMUFDDev(pci);
                 const char *iommufdDir = "/dev/iommu";

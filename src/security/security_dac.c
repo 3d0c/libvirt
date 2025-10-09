@@ -1290,6 +1290,16 @@ virSecurityDACSetHostdevLabel(virSecurityManager *mgr,
             ret = virSecurityDACSetHostdevLabelHelper(vfioGroupDev,
                                                       false,
                                                       &cbdata);
+            if (def->egm) {
+                g_autofree char *egm_path = g_strdup_printf("/dev/%s", def->egm->alias);
+                int ret2 = virSecurityDACSetHostdevLabelHelper(egm_path,
+                                                               false,
+                                                               &cbdata);
+                if (ret2 < 0) {
+                    ret = ret2;
+                    break;
+                }
+            }
             if (dev->source.subsys.u.pci.driver.iommufd) {
                 g_autofree char *vfiofdDev = virPCIDeviceGetIOMMUFDDev(pci);
                 const char *iommufdDir = "/dev/iommu";
@@ -1468,6 +1478,15 @@ virSecurityDACRestoreHostdevLabel(virSecurityManager *mgr,
 
             ret = virSecurityDACRestoreFileLabelInternal(mgr, NULL,
                                                          vfioGroupDev, false);
+            if (def->egm) {
+                g_autofree char *egm_path = g_strdup_printf("/dev/%s", def->egm->alias);
+                int ret2 = virSecurityDACRestoreFileLabelInternal(mgr, NULL,
+                                                                  egm_path, false);
+                if (ret2 < 0) {
+                    ret = ret2;
+                    break;
+                }
+            }
             if (dev->source.subsys.u.pci.driver.iommufd) {
                 g_autofree char *vfiofdDev = virPCIDeviceGetIOMMUFDDev(pci);
                 const char *iommufdDir = "/dev/iommu";
